@@ -1,0 +1,902 @@
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Style Editor</title>
+    <style>
+        #styleEditorWindow {
+            position: fixed;
+            top: 50px;
+            right: 10px;
+            width: 350px;
+            max-height: 80vh;
+            background: #f9f9f9;
+            border: 1px solid #ccc;
+            border-radius: 5px 5px 0 0;
+            overflow-y: auto;
+            z-index: 200002;
+        }
+        .style-item {
+            padding: 5px;
+            margin: 10px 0;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            background: #ffffff;
+            cursor: pointer;
+        }
+        .style-item:hover {
+            background: #f0f0f0;
+        }
+        .style-control {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 5px;
+            padding: 5px;
+        }
+        #backButton {
+            margin-top: 1px;
+            margin-left: 1px;
+            display: none;
+            padding: 5px 10px;
+            background: #007BFF;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .button-container {
+            display: flex;
+            gap: 10px;
+            padding: 10px;
+        }
+        .import-button, .export-button {
+            flex: 1;
+            padding: 8px;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .import-button {
+            background: #17a2b8;
+        }
+        .import-button:hover {
+            background: #138496;
+        }
+        .export-button {
+            background: #28a745;
+        }
+        .export-button:hover {
+            background: #218838;
+        }
+        #styleFileInput {
+            display: none;
+        }
+        .category-header {
+            cursor: pointer;
+            padding: 10px;
+            background-color: #e2e2e2;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            margin-top: 12px;
+            margin-left: 5px;
+            margin-right: 5px;
+        }
+        .category-content {
+            display: none;
+            margin-left: 10px;
+        }
+        .category-header.active + .category-content {
+            display: block;
+        }
+        #styleEditorWindowHeader {
+            height: 15px;
+            position: sticky;
+            top: 0;
+            z-index: 1;
+            cursor: move;
+            user-select: none;
+            padding: 5px 10px;
+            background-color: #007BFF;
+            color: white;
+            border-radius: 5px 5px 0 0;
+        }
+    </style>
+    <style id="dynamic-styles"></style>
+</head>
+<body>
+
+    <div id="styleEditorButton" style="position:fixed; top:10px; right:10px; background:#007BFF; color:white; padding:5px 10px; border-radius:50%; font-size:20px; cursor:pointer; z-index:9999;">✏️</div>
+
+    <div id="styleEditorWindow" style="display:none;">
+        <div id="styleEditorWindowHeader"></div>
+        <button id="backButton" onclick="loadStyleEditor()">← Назад</button>
+        <div id="styleList"></div>
+        <div class="button-container">
+            <input type="file" id="styleFileInput" accept=".css">
+            <button class="import-button" onclick="document.getElementById('styleFileInput').click()">Импортировать стили</button>
+            <button class="export-button" onclick="exportChangedStyles()">Экспортировать стили</button>
+        </div>
+    </div>
+
+    <script>
+        // Структурированные данные по категориям
+        const styleData = {
+    "Кнопка виджета": [
+        {
+            "selector": "#bingc-phone-button svg.bingc-phone-button-circle circle.bingc-phone-button-circle-inside",
+            "elementName": "Кнопка заказа звонка",
+            "styles": [
+                {
+                    "property": "fill",
+                    "type": "color",
+                    "value": ""
+                }
+            ]
+        },
+        {
+            "selector": "#bingc-phone-button:hover svg.bingc-phone-button-circle circle.bingc-phone-button-circle-inside",
+            "elementName": "Кнопка заказа звонка при наведении",
+            "styles": [
+                {
+                    "property": "fill",
+                    "type": "color",
+                    "value": ""
+                }
+            ]
+        },
+        {
+            "selector": "#bingc-phone-button svg.bingc-phone-button-icon-icon path",
+            "elementName": "Трубка на кнопке",
+            "styles": [
+                {
+                    "property": "fill",
+                    "type": "color",
+                    "value": ""
+                }
+            ]
+        },
+        {
+            "selector": "#bingc-phone-button div.bingc-phone-button-tooltip",
+            "elementName": "Окно при наведении на кнопку",
+            "styles": [
+                {
+                    "property": "background",
+                    "type": "color",
+                    "value": ""
+                },
+                {
+                    "property": "color",
+                    "type": "color",
+                    "value": ""
+                }
+            ]
+        },
+        {
+            "selector": "#bingc-phone-button div.bingc-phone-button-tooltip svg.bingc-phone-button-arrow polyline",
+            "elementName": "Маленький элемент под окном при наведении на кнопку",
+            "styles": [
+                {
+                    "property": "fill",
+                    "type": "color",
+                    "value": ""
+                }
+            ]
+        },
+        {
+            "selector": "#bingc-phone-button div.bingc-phone-button-icon-text span",
+            "elementName": "Текст \"Кнопка связи\", чередуется с трубкой",
+            "styles": [
+                {
+                    "property": "color",
+                    "type": "color",
+                    "value": ""
+                }
+            ]
+        }
+    ],
+    "Категория пассивная форма": [
+        {
+            "selector": "#bingc-passive div.bingc-passive-overlay",
+            "elementName": "Окно пассивной формы",
+            "styles": [
+                {
+                    "property": "background",
+                    "type": "color",
+                    "value": ""
+                }
+            ]
+        },
+        {
+            "selector": "#bingc-passive div.bingc-passive-overlay div.bingc-passive-content div.bingc-we-will-call-you",
+            "elementName": "Текст \"хочете зателефонуемо вам\"",
+            "styles": [
+                {
+                    "property": "color",
+                    "type": "color",
+                    "value": ""
+                }
+            ]
+        },
+        {
+            "selector": "#bingc-passive div.bingc-passive-overlay div.bingc-passive-content div.bingc-phone-sample",
+            "elementName": "Пример номера телефона",
+            "styles": [
+                {
+                    "property": "opacity",
+                    "type": "text",
+                    "value": ""
+                },
+                {
+                    "property": "color",
+                    "type": "color",
+                    "value": ""
+                }
+            ]
+        },
+        {
+            "selector": "#bingc-passive div.bingc-passive-overlay div.bingc-passive-content div.bingc-statistics",
+            "elementName": "Статистика",
+            "styles": [
+                {
+                    "property": "color",
+                    "type": "color",
+                    "value": ""
+                },
+                {
+                    "property": "opacity",
+                    "type": "text",
+                    "value": ""
+                }
+            ]
+        },
+        {
+            "selector": "#bingc-passive div.bingc-passive-overlay div.bingc-passive-content div.bingc-passive-get-phone-form form.bingc-passive-get-phone-form span.bingc-sample-countdown-timer",
+            "elementName": "Таймер обратного отсчета",
+            "styles": [
+                {
+                    "property": "color",
+                    "type": "color",
+                    "value": ""
+                }
+            ]
+        },
+        {
+            "selector": "#bingc-passive div.bingc-passive-overlay a.bingc-powered-by span.bingc-powered-by-text",
+            "elementName": "\"Powered by\" текст",
+            "styles": [
+                {
+                    "property": "color",
+                    "type": "color",
+                    "value": ""
+                }
+            ]
+        },
+        {
+            "selector": "#bingc-passive div.bingc-passive-overlay div.bingc-passive-content div.bingc-passive-get-phone-form form.bingc-passive-get-phone-form a.bingc-passive-phone-form-button",
+            "elementName": "Кнопка подтверждения вызова в окне",
+            "styles": [
+                {
+                    "property": "background",
+                    "type": "color",
+                    "value": ""
+                },
+                {
+                    "property": "color",
+                    "type": "color",
+                    "value": ""
+                }
+            ]
+        },
+        {
+            "selector": "#bingc-passive div.bingc-passive-overlay div.bingc-passive-content div.bingc-passive-get-phone-form form.bingc-passive-get-phone-form a.bingc-passive-phone-form-button:hover",
+            "elementName": "Кнопка подтверждения вызова при наведении",
+            "styles": [
+                {
+                    "property": "background",
+                    "type": "color",
+                    "value": ""
+                }
+            ]
+        },
+        {
+            "selector": "#bingc-passive div.bingc-passive-overlay div.bingc-passive-content div.bingc-passive-get-phone-form form.bingc-passive-get-phone-form a.bingc-passive-phone-form-button:active",
+            "elementName": "Кнопка подтверждения вызова при нажатии",
+            "styles": [
+                {
+                    "property": "background",
+                    "type": "color",
+                    "value": ""
+                }
+            ]
+        }
+    ],
+    "Категория пассивная форма внерабочее время": [
+        {
+            "selector": "#bingc-passive div.bingc-passive-overlay div.bingc-passive-content div.bingc-passive-get-phone-form form.bingc-passive-get-phone-form div.bingc-passive-date-selection-select-hour",
+            "elementName": "Селектор времени (часы)",
+            "styles": [
+                {
+                    "property": "color",
+                    "type": "color",
+                    "value": ""
+                },
+                {
+                    "property": "background",
+                    "type": "color",
+                    "value": ""
+                }
+            ]
+        },
+        {
+            "selector": "#bingc-passive div.bingc-passive-overlay div.bingc-passive-content div.bingc-passive-get-phone-form form.bingc-passive-get-phone-form div.bingc-passive-date-selection-select-minutes",
+            "elementName": "Селектор времени (минуты)",
+            "styles": [
+                {
+                    "property": "color",
+                    "type": "color",
+                    "value": ""
+                },
+                {
+                    "property": "background",
+                    "type": "color",
+                    "value": ""
+                }
+            ]
+        },
+        {
+            "selector": "#bingc-passive div.bingc-passive-overlay div.bingc-passive-content div.bingc-passive-get-phone-form form.bingc-passive-get-phone-form div.bingc-passive-date-selection-select-day:hover",
+            "elementName": "Селектор времени при наведении (день)",
+            "styles": [
+                {
+                    "property": "background",
+                    "type": "color",
+                    "value": ""
+                }
+            ]
+        },
+        {
+        "selector": "#bingc-passive div.bingc-passive-overlay div.bingc-passive-content div.bingc-passive-get-phone-form form.bingc-passive-get-phone-form div.bingc-passive-get-phone-form-date-selection div.bingc-passive-date-selection-select-hour span.bingc-passive-date-selection-selected-hour",
+        "elementName": "Селектор времени - выбранные часы",
+        "styles": [
+            {
+                "property": "color",
+                "type": "color",
+                "value": ""
+            }
+        ]
+    },
+    {
+        "selector": "#bingc-passive div.bingc-passive-overlay div.bingc-passive-content div.bingc-passive-get-phone-form form.bingc-passive-get-phone-form div.bingc-passive-get-phone-form-date-selection div.bingc-passive-date-selection-select-minutes span.bingc-passive-date-selection-selected-minutes",
+        "elementName": "Селектор времени - выбранные минуты",
+        "styles": [
+            {
+                "property": "color",
+                "type": "color",
+                "value": ""
+            }
+        ]
+    },
+    {
+        "selector": "#bingc-passive div.bingc-passive-overlay div.bingc-passive-content div.bingc-passive-get-phone-form form.bingc-passive-get-phone-form div.bingc-passive-get-phone-form-date-selection div.bingc-passive-date-selection-select-hour:hover",
+        "elementName": "Селектор времени при наведении (часы)",
+        "styles": [
+            {
+                "property": "background",
+                "type": "color",
+                "value": ""
+            }
+        ]
+    },
+    {
+        "selector": "#bingc-passive div.bingc-passive-overlay div.bingc-passive-content div.bingc-passive-get-phone-form form.bingc-passive-get-phone-form div.bingc-passive-get-phone-form-date-selection div.bingc-passive-date-selection-select-minutes:hover",
+        "elementName": "Селектор времени при наведении (минуты)",
+        "styles": [
+            {
+                "property": "background",
+                "type": "color",
+                "value": ""
+            }
+        ]
+    },
+    {
+        "selector": "#bingc-passive div.bingc-passive-overlay div.bingc-passive-content div.bingc-passive-get-phone-form form.bingc-passive-get-phone-form a.bingc-passive-phone-form-button:active",
+        "elementName": "Кнопка подтверждения вызова при активном состоянии",
+        "styles": [
+            {
+                "property": "background",
+                "type": "color",
+                "value": ""
+            }
+        ]
+    },
+    {
+        "selector": "#bingc-passive div.bingc-passive-overlay div.bingc-passive-content div.bingc-passive-get-phone-form form.bingc-passive-get-phone-form div.bingc-passive-get-phone-form-date-selection div.bingc-passive-date-selection-select-hour div.bingc-passive-date-selection-select-hour-list-of-hours-container ul.bingc-passive-date-selection-select-hour-list-of-hours li",
+        "elementName": "Список доступных часов для выбора",
+        "styles": [
+            {
+                "property": "color",
+                "type": "color",
+                "value": ""
+            },
+            {
+                "property": "background",
+                "type": "color",
+                "value": ""
+            }
+        ]
+    },
+    {
+        "selector": "#bingc-passive div.bingc-passive-overlay div.bingc-passive-content div.bingc-passive-get-phone-form form.bingc-passive-get-phone-form div.bingc-passive-get-phone-form-date-selection div.bingc-passive-date-selection-select-hour div.bingc-passive-date-selection-select-hour-list-of-hours-container ul.bingc-passive-date-selection-select-hour-list-of-hours li:hover",
+        "elementName": "Элемент из списка доступных часов при наведении",
+        "styles": [
+            {
+                "property": "color",
+                "type": "color",
+                "value": ""
+            },
+            {
+                "property": "background",
+                "type": "color",
+                "value": ""
+            }
+        ]
+    },
+    {
+        "selector": "#bingc-passive div.bingc-passive-overlay div.bingc-passive-content div.bingc-passive-get-phone-form form.bingc-passive-get-phone-form div.bingc-passive-get-phone-form-date-selection div.bingc-passive-date-selection-select-day div.bingc-passive-date-selection-select-day-list-of-days-container ul.bingc-passive-date-selection-select-day-list-of-days",
+        "elementName": "Список доступных дней",
+        "styles": [
+            {
+                "property": "background",
+                "type": "color",
+                "value": ""
+            }
+        ]
+    },
+    {
+        "selector": "#bingc-passive div.bingc-passive-overlay div.bingc-passive-content div.bingc-passive-get-phone-form form.bingc-passive-get-phone-form div.bingc-passive-get-phone-form-date-selection div.bingc-passive-date-selection-select-day div.bingc-passive-date-selection-select-day-list-of-days-container ul.bingc-passive-date-selection-select-day-list-of-days li:hover",
+        "elementName": "Элемент из списка доступных дней при наведении",
+        "styles": [
+            {
+                "property": "background",
+                "type": "color",
+                "value": ""
+            },
+            {
+                "property": "color",
+                "type": "color",
+                "value": ""
+            }
+        ]
+    },
+    {
+        "selector": "#bingc-passive div.bingc-passive-overlay div.bingc-passive-content div.bingc-passive-get-phone-form form.bingc-passive-get-phone-form div.bingc-passive-get-phone-form-date-selection div.bingc-passive-date-selection-select-minutes div.bingc-passive-date-selection-select-minutes-list-of-minutes-container ul.bingc-passive-date-selection-select-minutes-list-of-minutes li",
+        "elementName": "Список доступных минут",
+        "styles": [
+            {
+                "property": "color",
+                "type": "color",
+                "value": ""
+            },
+            {
+                "property": "background",
+                "type": "color",
+                "value": ""
+            }
+        ]
+    },
+    {
+        "selector": "#bingc-passive div.bingc-passive-overlay div.bingc-passive-content div.bingc-passive-get-phone-form form.bingc-passive-get-phone-form div.bingc-passive-get-phone-form-date-selection div.bingc-passive-date-selection-select-minutes div.bingc-passive-date-selection-select-minutes-list-of-minutes-container ul.bingc-passive-date-selection-select-minutes-list-of-minutes li:hover",
+        "elementName": "Элемент из списка доступных минут при наведении",
+        "styles": [
+            {
+                "property": "color",
+                "type": "color",
+                "value": ""
+            },
+            {
+                "property": "background",
+                "type": "color",
+                "value": ""
+            }
+        ]
+    }
+    ],
+    "Активная форма виджета": [
+    {
+        "selector": "#bingc-active",
+        "elementName": "Окно нижней активной формы",
+        "styles": [
+            {
+                "property": "background",
+                "type": "color",
+                "value": ""
+            }
+        ]
+    },
+    {
+        "selector": "#bingc-active div.bingc-active-overlay div.bingc-active-content div.bingc-we-will-call-you",
+        "elementName": "Текст активной формы (хотите перезвоним за 30 сек)",
+        "styles": [
+            {
+                "property": "color",
+                "type": "color",
+                "value": ""
+            }
+        ]
+    },
+    {
+        "selector": "#bingc-active div.bingc-active-overlay div.bingc-active-content div.bingc-statistics",
+        "elementName": "Статистика (свободные операторы, кол-во звонков)",
+        "styles": [
+            {
+                "property": "color",
+                "type": "color",
+                "value": ""
+            },
+            {
+                "property": "opacity",
+                "type": "text",
+                "value": ""
+            }
+        ]
+    },
+    {
+        "selector": "#bingc-active div.bingc-active-overlay div.bingc-active-content div.bingc-active-get-phone-form form.bingc-active-get-phone-form span.bingc-sample-countdown-timer",
+        "elementName": "Таймер отсчёта",
+        "styles": [
+            {
+                "property": "color",
+                "type": "color",
+                "value": ""
+            }
+        ]
+    },
+    {
+        "selector": "#bingc-active a.bingc-powered-by span.bingc-powered-by-text",
+        "elementName": "\"Powered by\" текст",
+        "styles": [
+            {
+                "property": "color",
+                "type": "color",
+                "value": ""
+            },
+            {
+                "property": "opacity",
+                "type": "text",
+                "value": ""
+            }
+        ]
+    },
+    {
+        "selector": "#bingc-active div.bingc-active-overlay div.bingc-active-content div.bingc-active-get-phone-form form.bingc-active-get-phone-form a.bingc-active-phone-form-button",
+        "elementName": "Кнопка заказа звонка и текст на ней",
+        "styles": [
+            {
+                "property": "color",
+                "type": "color",
+                "value": ""
+            },
+            {
+                "property": "background",
+                "type": "color",
+                "value": ""
+            }
+        ]
+    },
+    {
+        "selector": "#bingc-active div.bingc-active-overlay div.bingc-active-content div.bingc-active-get-phone-form form.bingc-active-get-phone-form a.bingc-active-phone-form-button:hover",
+        "elementName": "Кнопка заказа звонка при наведении",
+        "styles": [
+            {
+                "property": "background",
+                "type": "color",
+                "value": ""
+            }
+        ]
+    }
+]
+};
+
+        // Объект для хранения измененных стилей
+        let changedStyles = {};
+        let categoryStates = {};
+        let lastScrollPosition = 0;
+
+        document.getElementById('styleFileInput').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    importStyles(e.target.result);
+                };
+                reader.readAsText(file);
+            }
+        });
+
+        // Функция для импорта стилей
+        function importStyles(cssText) {
+            try {
+                const currentScroll = document.getElementById("styleEditorWindow").scrollTop;
+
+                // Очищаем существующие стили
+                changedStyles = {};
+
+                // Удаляем теги style если они есть
+                cssText = cssText.replace(/<style[^>]*>|<\/style>/gi, '');
+
+                // Разбиваем CSS на правила
+                const rules = cssText.match(/[^}]+\s*\{[^}]+\}/g);
+
+                if (rules) {
+                    rules.forEach(rule => {
+                        const [selector, styles] = rule.split('{');
+
+                        if (selector && styles) {
+                            const cleanSelector = selector.trim();
+
+                            // Парсим отдельные свойства стилей
+                            const styleProperties = styles.replace('}', '').trim().split(';');
+                            styleProperties.forEach(prop => {
+                                if (prop.trim()) {
+                                    let [property, value] = prop.split(':').map(s => s.trim());
+                                    if (property && value) {
+                                        // Удаляем !important если оно есть в импортируемом значении
+                                        value = value.replace(/\s*!important\s*$/, '');
+                                        // Добавляем !important обратно через updateStyle
+                                        updateStyle(cleanSelector, property, value);
+                                    }
+                                }
+                            });
+                        }
+                    });
+                }
+
+                // Применяем все стили
+                applyDynamicStyles();
+
+                // Перезагружаем редактор и восстанавливаем позицию прокрутки
+                loadStyleEditor();
+                setTimeout(() => {
+                    document.getElementById("styleEditorWindow").scrollTop = currentScroll;
+                }, 100);
+
+                alert('Стили успешно импортированы');
+            } catch (error) {
+                console.error('Error importing styles:', error);
+                alert('Ошибка при импорте стилей. Проверьте формат файла.');
+            }
+        }
+      
+        // Открытие/закрытие окна редактора
+        document.getElementById("styleEditorButton").onclick = function() {
+            const editorWindow = document.getElementById("styleEditorWindow");
+            if (editorWindow.style.display === "none") {
+                editorWindow.style.display = "block";
+                // Применяем сохраненные стили при открытии редактора
+                applyDynamicStyles();
+            } else {
+                editorWindow.style.display = "none";
+            }
+        };
+
+                // Функция для восстановления позиции прокрутки с задержкой
+        function restoreScrollPosition() {
+            const savedPosition = lastScrollPosition;
+            setTimeout(() => {
+                document.getElementById("styleEditorWindow").scrollTop = savedPosition;
+            }, 0);
+        }
+
+        // Модификация функции для загрузки редактора с вызовом восстановления позиции скролла
+        function loadStyleEditor() {
+            const styleList = document.getElementById("styleList");
+            styleList.innerHTML = '';
+            document.getElementById("backButton").style.display = "none";
+
+            // Восстанавливаем позицию прокрутки с небольшой задержкой после загрузки стилей
+            restoreScrollPosition();
+
+            for (const category in styleData) {
+                const categoryHeader = document.createElement("div");
+                categoryHeader.className = "category-header";
+                categoryHeader.textContent = category;
+
+                if (categoryStates[category]) {
+                    categoryHeader.classList.add("active");
+                }
+
+                categoryHeader.onclick = function () {
+                    this.classList.toggle("active");
+                    const content = this.nextElementSibling;
+                    if (content.style.display === "block") {
+                        content.style.display = "none";
+                        categoryStates[category] = false;
+                    } else {
+                        content.style.display = "block";
+                        categoryStates[category] = true;
+                    }
+                };
+
+                styleList.appendChild(categoryHeader);
+
+                const categoryContent = document.createElement("div");
+                categoryContent.className = "category-content";
+                if (categoryStates[category]) {
+                    categoryContent.style.display = "block";
+                } else {
+                    categoryContent.style.display = "none";
+                }
+
+                styleData[category].forEach(style => {
+                    const styleItem = document.createElement("div");
+                    styleItem.className = "style-item";
+                    styleItem.innerHTML = `<div style="display: flex; align-items: center; justify-content: space-between;">
+                                               <span>${style.elementName}</span>
+                                           </div>`;
+
+                    // Сохраняем позицию прокрутки при нажатии на style-item
+                    styleItem.onclick = () => {
+                        lastScrollPosition = document.getElementById("styleEditorWindow").scrollTop;
+                        openStyleEditor(style);
+                    };
+                    categoryContent.appendChild(styleItem);
+                });
+
+                styleList.appendChild(categoryContent);
+            }
+        }
+
+
+        // Функция для открытия редактора конкретного стиля
+        function openStyleEditor(style) {
+        const styleList = document.getElementById("styleList");
+        styleList.innerHTML = `<h4 style="margin-top:0">${style.elementName}</h4>`;
+        document.getElementById("backButton").style.display = "block";
+
+        style.styles.forEach(styleProperty => {
+            const { property, type } = styleProperty;
+
+            // Получаем текущее значение из changedStyles, удаляем !important если есть
+            const currentValue = changedStyles[style.selector]?.[property]?.replace(/\s*!important\s*$/, '') || 
+                               styleProperty.value || 
+                               (type === "color" ? "#000000" : "");
+
+            const styleControl = document.createElement("div");
+            styleControl.className = "style-control";
+            styleControl.innerHTML = `<label>${property}:</label>`;
+
+            let inputField;
+            if (type === "color") {
+                inputField = `
+                    <input type="color" value="${currentValue}" 
+                        onchange="updateStyle('${style.selector}', '${property}', this.value)">
+                    <input type="text" value="${currentValue}" style="width: 80px;" 
+                        onchange="updateStyle('${style.selector}', '${property}', this.value)">
+                `;
+            } else if (type === "text") {
+                inputField = `
+                    <input type="text" value="${currentValue}" style="width: 80px;" 
+                        onchange="updateStyle('${style.selector}', '${property}', this.value)">
+                `;
+            }
+
+            styleControl.innerHTML += `<div style="display: flex; gap: 5px;">${inputField}</div>`;
+            styleList.appendChild(styleControl);
+        });
+    }
+
+        // Функция для обновления стиля
+        function updateStyle(selector, property, value) {
+            if (!changedStyles[selector]) {
+                changedStyles[selector] = {};
+            }
+
+            if (value) {
+                // Всегда удаляем существующий !important перед добавлением нового
+                const cleanValue = value.replace(/\s*!important\s*$/, '');
+                changedStyles[selector][property] = `${cleanValue} !important`;
+            } else {
+                delete changedStyles[selector][property];
+                if (Object.keys(changedStyles[selector]).length === 0) {
+                    delete changedStyles[selector];
+                }
+            }
+
+            applyDynamicStyles();
+        }
+
+        // Функция для применения измененных стилей
+        function applyDynamicStyles() {
+            let cssText = "";
+            Object.keys(changedStyles).forEach(selector => {
+                if (Object.keys(changedStyles[selector]).length > 0) {
+                    cssText += `${selector} {\n`;
+                    Object.keys(changedStyles[selector]).forEach(property => {
+                        cssText += `  ${property}: ${changedStyles[selector][property]};\n`;
+                    });
+                    cssText += `}\n`;
+                }
+            });
+            document.getElementById("dynamic-styles").textContent = cssText;
+            console.log('Applied styles:', cssText); // Для отладки
+        }
+
+        // Функция для экспорта измененных стилей
+        function exportChangedStyles() {
+            let cssText = "<style type=\"text/css\">\n";
+            Object.keys(changedStyles).forEach(selector => {
+                if (Object.keys(changedStyles[selector]).length > 0) {
+                    cssText += `${selector} {\n`;
+                    Object.keys(changedStyles[selector]).forEach(property => {
+                        cssText += `  ${property}: ${changedStyles[selector][property]};\n`;
+                    });
+                    cssText += `}\n`;
+                }
+            });
+            cssText += "</style>";
+
+            const blob = new Blob([cssText], { type: "text/css" });
+            const link = document.createElement("a");
+            link.href = URL.createObjectURL(blob);
+            link.download = "changed_styles.css";
+            link.click();
+        }
+
+        // Инициализация редактора при загрузке
+        loadStyleEditor();
+
+        /* Реализация перемещения окна редактора */
+        const header = document.getElementById("styleEditorWindowHeader");
+        const editorWindow = document.getElementById("styleEditorWindow");
+
+        let isDragging = false;
+        let offsetX = 0;
+        let offsetY = 0;
+
+        // Функция при нажатии на заголовок
+        header.addEventListener('mousedown', function(e) {
+            isDragging = true;
+            // Вычисляем смещение между курсором и верхним левым углом окна
+            const rect = editorWindow.getBoundingClientRect();
+            offsetX = e.clientX - rect.left;
+            offsetY = e.clientY - rect.top;
+            // Убираем свойство right, чтобы избежать конфликтов с left
+            editorWindow.style.right = 'auto';
+            // Устанавливаем абсолютное позиционирование для окна
+            editorWindow.style.left = rect.left + 'px';
+            editorWindow.style.top = rect.top + 'px';
+        });
+
+        // Функция при перемещении мыши
+        document.addEventListener('mousemove', function(e) {
+            if (isDragging) {
+                // Вычисляем новые координаты
+                let newLeft = e.clientX - offsetX;
+                let newTop = e.clientY - offsetY;
+
+                // Ограничиваем перемещение внутри окна просмотра
+                const windowWidth = window.innerWidth;
+                const windowHeight = window.innerHeight;
+                const editorWidth = editorWindow.offsetWidth;
+                const editorHeight = editorWindow.offsetHeight;
+
+                // Предотвращаем выход окна за пределы экрана
+                newLeft = Math.max(0, Math.min(newLeft, windowWidth - editorWidth));
+                newTop = Math.max(0, Math.min(newTop, windowHeight - editorHeight));
+
+                // Устанавливаем новые координаты
+                editorWindow.style.left = newLeft + 'px';
+                editorWindow.style.top = newTop + 'px';
+            }
+        });
+
+        // Функция при отпускании кнопки мыши
+        document.addEventListener('mouseup', function() {
+            isDragging = false;
+        });
+    </script>
+
+</body>
+</html>
